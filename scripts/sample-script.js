@@ -26,17 +26,7 @@ async function main() {
 
   console.log("Interestrate deployed to:", interestrate.address);
 
-  // Deploy oracle
-  const Oracle = await hre.ethers.getContractFactory("SimplePriceOracle");
-  const oracle = await Oracle.deploy();
-  await oracle.deployed();
-    
-  console.log("Oracle deployed to:", oracle.address);
-    
-  // Set oracle
-  await comptroller._setPriceOracle(oracle.address);
-
-  // Deploy test CEther 
+  // Deploy CEther 
   const CEther = await ethers.getContractFactory("CEther");
   const cEther = await CEther.deploy(
     comptroller.address, 
@@ -51,61 +41,39 @@ async function main() {
 
   console.log('CEther deployed to:', cEther.address);
 
-  await oracle.setUnderlyingPrice(cEther.address, 100)
-  
+   // Deploy oracle
+   const Oracle = await hre.ethers.getContractFactory("SimplePriceOracle");
+   const oracle = await Oracle.deploy();
+   await oracle.deployed();
+     
+   console.log("Oracle deployed to:", oracle.address);
+     
+   // Set oracle
+  await comptroller._setPriceOracle(oracle.address);
+  await oracle.setDirectPrice(cEther.address, 20000);
+
+  // Support CEther in componud  
   await comptroller._supportMarket(cEther.address);
-  await comptroller._setCollateralFactor(cEther.address,  ethers.utils.parseEther("10"));
-
-  // deploy JToken 
-  const TestToken = await hre.ethers.getContractFactory("JToken");
-  const testToken = await TestToken.deploy(ethers.utils.parseEther("5000"));
-  await testToken.deployed();
- 
-  console.log("Testtoken deployed to:", testToken.address);
-
-  const CErc20 = await ethers.getContractFactory('CErc20');
-  const cTestCoin = await CErc20.deploy(
-    testToken.address,
-    comptroller.address,
-    interestrate.address,
-    '1',
-    "CJackyToken", 
-    "CJT", 
-    8
-  );
-  await cTestCoin.deployed();
-  console.log('cTestCoin deployed to:', cTestCoin.address);
-
-  await oracle.setUnderlyingPrice(cTestCoin.address, 100)
-  await comptroller._supportMarket(cTestCoin.address);
-  await comptroller._setCollateralFactor(cTestCoin.address, ethers.utils.parseEther("1"));
+  // Enter markets
+  await comptroller.enterMarkets([cEther.address]);
+  // Set Collateral Factor
+  await comptroller._setCollateralFactor(cEther.address, ethers.utils.parseEther("1"));
   
 
-  //EnterMarkets
-  await comptroller.enterMarkets([cEther.address, cTestCoin.address]);
+  //Start to test mint/redeem/borrow/repay
 
+  await cEther.mint({ value: BigNumber.from(1).mul(10 ** 8) });
+  balance = await cEther.balanceOf(deployer.address);
+  console.log('Supply cEther :', balance.toString());
 
-  await testToken.approve(cTestCoin.address, 100000000000);
-  await cTestCoin.mint(1000);
+  await cEther.borrow(BigNumber.from(2).mul(10 ** 5));
+  balance = await cEther.balanceOf(deployer.address);
+  console.log('cEther balance after borrowing', balance.toString());
 
-  console.log('Supply cEther');
-  await cEther.mint({ value:  ethers.utils.parseEther("1") });
+  await cEther.redeem(BigNumber.from(2).mul(10 ** 6));
+  balance = await cEther.balanceOf(deployer.address);
+  console.log('cEther balance after redeem', balance.toString());
 
-  balance = await cEther.balanceOf(admin.address);
-  console.log('cEther balance', balance.toString());
-
-    
-  console.log('Supply cTestCoin');
-  await testCoin.approve(cTestCoin.address, ethers.utils.parseEther("10"));
-  await cTestCoin.mint(1000);
-  balance = await cTestCoin.balanceOf(admin.address);
-  console.log('cTestCoin balance', balance.toString());
-
-  balance = await testCoin.balanceOf(admin.address);
-  console.log('TestCoin balance before borrowing', balance.toString());
-  await cTestCoin.borrow(1000);
-  balance = await testCoin.balanceOf(admin.address);
-  console.log('TestCoin balance after borrowing', balance.toString());
 }
 
 // We recommend this pattern to be able to use async/await everywhere
