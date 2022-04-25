@@ -114,10 +114,11 @@ async function main() {
   console.log('cEther balance after redeem', balance.toString());
 */
 
+  let borrower;
   // Start to test liquidate
   // provide 100 JToken
   await cErc20.mint(ethers.utils.parseUnits('100', 18));
-
+    
   // borrower provide 100 cETH
   await cEther.connect(borrower).mint({ value: ethers.utils.parseUnits('100', 18) });
   
